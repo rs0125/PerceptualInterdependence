@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "perceptual-interdependence"
+version = "1.0.0"
+description = "Geometry-Aware Photometric Binding System for 3D Asset Protection"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Research Team", email = "research@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "pillow>=8.0.0",
+    "matplotlib>=3.3.0",
+    "streamlit>=1.20.0",
+    "numba>=0.56.0",
+    "scipy>=1.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "isort>=5.0",
+    "flake8>=3.8",
+    "mypy>=0.800",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=1.0",
+    "myst-parser>=0.15",
+]
+benchmark = [
+    "memory-profiler>=0.60",
+    "psutil>=5.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/research/perceptual-interdependence"
+Documentation = "https://perceptual-interdependence.readthedocs.io"
+Repository = "https://github.com/research/perceptual-interdependence.git"
+Issues = "https://github.com/research/perceptual-interdependence/issues"
+
+[project.scripts]
+perceptual-bind = "perceptual_interdependence.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=perceptual_interdependence --cov-report=html --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
