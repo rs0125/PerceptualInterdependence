@@ -61,7 +61,7 @@ Repository = "https://github.com/research/perceptual-interdependence.git"
 Issues = "https://github.com/research/perceptual-interdependence/issues"
 
 [project.scripts]
-perceptual-bind = "perceptual_interdependence.cli:main"
+perceptual-bind = "perceptual_interdependence.cli.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

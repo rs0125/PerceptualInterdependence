@@ -25,6 +25,7 @@ Examples:
   %(prog)s experiment --victim-id 42 --attacker-id 99
   %(prog)s gui --port 8501
   %(prog)s demo --output-dir ./demo_results
+  %(prog)s chart --albedo texture.png --normal normal.png --victim-id 42 --attacker-id 99
         """
     )
     
@@ -160,6 +161,48 @@ Examples:
         help='Number of benchmark iterations (default: 5)'
     )
     
+    # Chart command
+    chart_parser = subparsers.add_parser(
+        'chart',
+        help='Generate demonstration charts',
+        description='Create comprehensive visualization charts showing the effects of binding operations'
+    )
+    chart_parser.add_argument(
+        '--albedo',
+        type=Path,
+        required=True,
+        help='Path to albedo texture file'
+    )
+    chart_parser.add_argument(
+        '--normal',
+        type=Path,
+        required=True,
+        help='Path to normal map file'
+    )
+    chart_parser.add_argument(
+        '--victim-id',
+        type=int,
+        default=42,
+        help='User ID for legitimate binding scenario (default: 42)'
+    )
+    chart_parser.add_argument(
+        '--attacker-id',
+        type=int,
+        default=99,
+        help='User ID for attack scenario (default: 99)'
+    )
+    chart_parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default='.',
+        help='Output directory for chart (default: current directory)'
+    )
+    chart_parser.add_argument(
+        '--output-name',
+        default='demonstration_chart.png',
+        help='Chart filename (default: demonstration_chart.png)'
+    )
+    
     return parser
 
 
@@ -291,6 +334,60 @@ def cmd_benchmark(args) -> None:
     print(f"   Throughput: {pixels_per_sec/1e6:.1f} Mpixels/sec")
 
 
+def cmd_chart(args) -> None:
+    """Execute chart generation command."""
+    print(f"📊 Generating demonstration chart")
+    print(f"   Albedo: {args.albedo}")
+    print(f"   Normal: {args.normal}")
+    print(f"   Victim ID: {args.victim_id}")
+    print(f"   Attacker ID: {args.attacker_id}")
+    
+    # Validate input files
+    if not args.albedo.exists():
+        raise FileNotFoundError(f"Albedo texture not found: {args.albedo}")
+    if not args.normal.exists():
+        raise FileNotFoundError(f"Normal map not found: {args.normal}")
+    
+    # Validate user IDs
+    if args.victim_id <= 0:
+        raise ValueError(f"Victim ID must be positive integer, got: {args.victim_id}")
+    if args.attacker_id <= 0:
+        raise ValueError(f"Attacker ID must be positive integer, got: {args.attacker_id}")
+    
+    # Prepare output path
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / args.output_name
+    
+    try:
+        # Import ChartGenerator
+        from ..utils.chart_generator import ChartGenerator
+        
+        # Create chart generator and generate chart
+        print("🎨 Initializing chart generator...")
+        chart_generator = ChartGenerator()
+        
+        print("🔄 Processing assets and generating chart...")
+        saved_path = chart_generator.generate_demonstration_chart(
+            albedo_path=str(args.albedo),
+            normal_path=str(args.normal),
+            victim_id=args.victim_id,
+            attacker_id=args.attacker_id,
+            output_path=str(output_path)
+        )
+        
+        print(f"✅ Chart generated successfully!")
+        print(f"   Output: {saved_path}")
+        print(f"   User IDs: Victim={args.victim_id}, Attacker={args.attacker_id}")
+        
+    except ImportError as e:
+        print(f"❌ Chart generation dependencies not available: {e}")
+        print("   Please ensure matplotlib and PIL are installed")
+    except Exception as e:
+        print(f"❌ Chart generation failed: {e}")
+        raise
+
+
 def main() -> None:
     """Main entry point for CLI."""
     parser = create_parser()
@@ -312,6 +409,8 @@ def main() -> None:
             cmd_gui(args)
         elif args.command == 'benchmark':
             cmd_benchmark(args)
+        elif args.command == 'chart':
+            cmd_chart(args)
         else:
             parser.print_help()
             

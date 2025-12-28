@@ -89,7 +89,7 @@ if NUMBA_AVAILABLE:
     
     @jit(nopython=True, parallel=True, cache=True)
     def _antidote_calculation_kernel(normal: np.ndarray, effective_poison: np.ndarray) -> np.ndarray:
-        """Ultra-fast Numba-compiled antidote calculation."""
+        """Ultra-fast Numba-compiled antidote calculation using Analytically Safe logic."""
         height, width, _ = normal.shape
         antidote_normal = np.zeros_like(normal)
         
@@ -100,35 +100,35 @@ if NUMBA_AVAILABLE:
                 ny = normal[i, j, 1] * 2.0 - 1.0
                 nz = normal[i, j, 2] * 2.0 - 1.0
                 
-                # Calculate scaling factor
-                poison_val = effective_poison[i, j]
-                scaling_factor = 1.0 / (1.0 + poison_val)
+                # Get effective poison for this pixel
+                p_effective = effective_poison[i, j]
                 
-                # Calculate headroom for geometric constraints
-                lateral_mag_sq = nx*nx + ny*ny
-                if lateral_mag_sq < 0.99:  # Not a flat surface
-                    headroom = np.sqrt(max(0.01, 1.0 - lateral_mag_sq))
-                    max_scaling = headroom / max(0.01, abs(nz))
-                    final_scaling = min(scaling_factor, max_scaling)
+                # ANALYTICALLY SAFE LOGIC: Z_new = Z_old / (1 + P_effective)
+                nz_new = nz / (1.0 + p_effective)
+                
+                # Calculate lateral lengths for vector reconstruction
+                lat_len_old = np.sqrt(max(0.0, 1.0 - nz*nz))
+                lat_len_new = np.sqrt(max(0.0, 1.0 - nz_new*nz_new))
+                
+                # Reconstruct X/Y components
+                if lat_len_old < 1e-4:
+                    # Handle flat surface (original normal was [0,0,1])
+                    # Generate pseudo-random direction based on coordinates
+                    angle = (i * 12.9898 + j * 78.233) * 43758.5453
+                    angle = angle - np.floor(angle)  # Get fractional part
+                    angle = angle * 6.28318530718  # Convert to radians [0, 2π]
+                    nx_new = lat_len_new * np.cos(angle)
+                    ny_new = lat_len_new * np.sin(angle)
                 else:
-                    final_scaling = scaling_factor
+                    # Scale existing direction
+                    ratio = lat_len_new / lat_len_old
+                    nx_new = nx * ratio
+                    ny_new = ny * ratio
                 
-                final_scaling = max(final_scaling, 0.1)  # Minimum scaling
-                
-                # Update Z component
-                new_nz = nz * final_scaling
-                
-                # Normalize vector
-                norm = np.sqrt(nx*nx + ny*ny + new_nz*new_nz)
-                if norm > 0.001:
-                    nx /= norm
-                    ny /= norm
-                    new_nz /= norm
-                
-                # Convert back to RGB
-                antidote_normal[i, j, 0] = (nx + 1.0) * 0.5
-                antidote_normal[i, j, 1] = (ny + 1.0) * 0.5
-                antidote_normal[i, j, 2] = (new_nz + 1.0) * 0.5
+                # Convert back to RGB format
+                antidote_normal[i, j, 0] = (nx_new + 1.0) * 0.5
+                antidote_normal[i, j, 1] = (ny_new + 1.0) * 0.5
+                antidote_normal[i, j, 2] = (nz_new + 1.0) * 0.5
         
         return antidote_normal
 
@@ -278,34 +278,42 @@ class CPUOptimizedMath:
             return self._calculate_antidote_vectorized(normal, effective_poison)
     
     def _calculate_antidote_vectorized(self, normal: np.ndarray, effective_poison: np.ndarray) -> np.ndarray:
-        """Highly optimized vectorized antidote calculation."""
+        """Highly optimized vectorized antidote calculation using Analytically Safe logic."""
         # Convert RGB normal to vector format (vectorized)
         normal_vectors = normal * 2.0 - 1.0
         
         # Extract components
         nx, ny, nz = normal_vectors[..., 0], normal_vectors[..., 1], normal_vectors[..., 2]
         
-        # Calculate scaling factor (vectorized)
-        scaling_factor = 1.0 / (1.0 + effective_poison)
+        # ANALYTICALLY SAFE LOGIC: Z_new = Z_old / (1 + P_effective)
+        nz_new = nz / (1.0 + effective_poison)
         
-        # Geometric constraints (vectorized)
-        lateral_mag_sq = nx**2 + ny**2
-        headroom = np.sqrt(np.maximum(0.01, 1.0 - lateral_mag_sq))
-        max_scaling = headroom / np.maximum(0.01, np.abs(nz))
+        # Calculate lateral lengths for vector reconstruction
+        lat_len_old = np.sqrt(np.maximum(0.0, 1.0 - nz**2))
+        lat_len_new = np.sqrt(np.maximum(0.0, 1.0 - nz_new**2))
         
-        # Apply constraints (vectorized)
-        final_scaling = np.minimum(scaling_factor, max_scaling)
-        final_scaling = np.maximum(final_scaling, 0.1)
+        # Handle flat surfaces (where lat_len_old is very small)
+        flat_mask = lat_len_old < 1e-4
         
-        # Update Z component (vectorized)
-        new_nz = nz * final_scaling
+        # For non-flat surfaces: scale existing direction
+        ratio = np.where(lat_len_old > 1e-4, lat_len_new / lat_len_old, 1.0)
+        nx_new = nx * ratio
+        ny_new = ny * ratio
+        
+        # For flat surfaces: generate pseudo-random direction
+        if np.any(flat_mask):
+            y_coords, x_coords = np.ogrid[:normal.shape[0], :normal.shape[1]]
+            angles = (x_coords * 12.9898 + y_coords * 78.233) * 43758.5453
+            angles = (angles - np.floor(angles)) * 2 * np.pi  # Convert to [0, 2π]
+            
+            flat_nx = lat_len_new * np.cos(angles)
+            flat_ny = lat_len_new * np.sin(angles)
+            
+            nx_new = np.where(flat_mask, flat_nx, nx_new)
+            ny_new = np.where(flat_mask, flat_ny, ny_new)
         
         # Reconstruct normal vectors (vectorized)
-        new_normal_vectors = np.stack([nx, ny, new_nz], axis=2)
-        
-        # Normalize vectors (vectorized)
-        norms = np.linalg.norm(new_normal_vectors, axis=2, keepdims=True)
-        new_normal_vectors = new_normal_vectors / np.maximum(norms, 0.001)
+        new_normal_vectors = np.stack([nx_new, ny_new, nz_new], axis=2)
         
         # Convert back to RGB format (vectorized)
         return (new_normal_vectors + 1.0) * 0.5
