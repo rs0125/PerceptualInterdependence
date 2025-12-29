@@ -2,7 +2,6 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## Abstract
 
@@ -11,6 +10,18 @@ This research presents a novel geometry-aware photometric binding system for 3D 
 The core innovation lies in the analytical relationship between albedo brightening and normal map steepening, expressed as `A_new × Z_new = A_original × Z_original`, ensuring perfect mathematical cancellation without iterative calibration. The system achieves sub-100ms processing times for 2048×2048 textures through CPU-optimized implementations with Numba JIT compilation, making it suitable for real-time applications and large-scale deployment.
 
 Comprehensive validation demonstrates the system's effectiveness across diverse texture types, with forensic analysis capabilities enabling detection of unauthorized modifications. The research-grade implementation provides modular architecture supporting extensibility for algorithm development and comparative studies in digital asset protection.
+
+## Demonstration Results
+
+The following charts demonstrate the system's capability to reveal subtle noise patterns through high-magnification analysis:
+
+### Velvet Texture Analysis (10x Magnification)
+![Velvet Texture 10x Zoom Analysis](docs/images/velvet_10x_analysis.png)
+*High-magnification analysis of velvet texture showing perceptual interdependence effects at 10x zoom. The difference map clearly reveals the binding artifacts that provide security against unauthorized use while remaining imperceptible in normal viewing conditions.*
+
+### Church Bricks Texture Analysis (25x Magnification)
+![Church Bricks 25x High-Magnification Analysis](docs/images/church_bricks_25x_analysis.png)
+*Ultra-high magnification (25x) analysis of church bricks texture demonstrating the system's effectiveness across diverse material types. The enhanced difference visualization shows the precise mathematical relationship between albedo and normal map modifications.*
 
 ## Key Features
 
@@ -399,9 +410,7 @@ chart_generation:
 - **[Validation Methods](docs/algorithms/validation.md)**: Quality assurance approaches
 - **[Visualization Algorithms](docs/algorithms/visualization.md)**: Chart generation and analysis methods
 
-## Contributing
 
-We welcome contributions from the research community.
 
 ### Development Setup
 
@@ -426,56 +435,13 @@ mypy src/
 flake8 src/ tests/
 ```
 
-### Submitting Changes
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Ensure all tests pass: `pytest`
-5. Submit a pull request
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
 
-- **Issues**: [GitHub Issues](https://github.com/research/perceptual-interdependence/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/research/perceptual-interdependence/discussions)
-- **Email**: research@example.com
 
-## Citation
-
-If you use this work in your research, please cite:
-
-```bibtex
-@software{perceptual_interdependence_2024,
-  title={Perceptual Interdependence: Geometry-Aware Photometric Binding System},
-  author={Research Team},
-  year={2024},
-  url={https://github.com/research/perceptual-interdependence},
-  version={1.0.0}
-}
-```
-
-## Changelog
-
-### Version 1.0.0 (2024-12-29)
-
-- **Initial Release**: Complete rewrite with research-grade architecture
-- **CPU Optimization**: Numba JIT compilation for 10x+ performance improvement
-- **Modular Design**: Clean separation of concerns with extensible architecture
-- **Comprehensive Testing**: Full test suite with unit, integration, and benchmark tests
-- **Documentation**: Complete API documentation and tutorials
-- **CLI Tools**: Professional command-line interface with multiple commands
-- **Web GUI**: Interactive Streamlit-based graphical interface
-- **Research Tools**: Built-in validation, forensics, and experimental pipelines
-- **Advanced Visualization**: High-magnification chart generation for detailed analysis
-- **Performance Optimization**: Optimized chart generation with region cropping
-
-### Previous Versions
-
-- **v0.x**: Legacy GPU-based implementation (deprecated)
 
 ## Acknowledgments
 

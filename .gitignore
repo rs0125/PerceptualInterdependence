@@ -162,6 +162,11 @@ data/results/
 !data/samples/*.png
 !data/samples/*.jpg
 
+# Keep documentation images
+!docs/images/
+!docs/images/*.png
+!docs/images/*.jpg
+
 # Temporary files
 *.tmp
 *.temp
