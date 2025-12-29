@@ -26,6 +26,7 @@ Examples:
   %(prog)s gui --port 8501
   %(prog)s demo --output-dir ./demo_results
   %(prog)s chart --albedo texture.png --normal normal.png --victim-id 42 --attacker-id 99
+  %(prog)s zoom-chart --albedo texture.png --normal normal.png --zoom-factor 15.0
         """
     )
     
@@ -203,6 +204,61 @@ Examples:
         help='Chart filename (default: demonstration_chart.png)'
     )
     
+    # Zoomed Chart command
+    zoom_chart_parser = subparsers.add_parser(
+        'zoom-chart',
+        help='Generate zoomed demonstration charts',
+        description='Create zoomed visualization charts to show noise patterns at high magnification'
+    )
+    zoom_chart_parser.add_argument(
+        '--albedo',
+        type=Path,
+        required=True,
+        help='Path to albedo texture file'
+    )
+    zoom_chart_parser.add_argument(
+        '--normal',
+        type=Path,
+        required=True,
+        help='Path to normal map file'
+    )
+    zoom_chart_parser.add_argument(
+        '--victim-id',
+        type=int,
+        default=42,
+        help='User ID for legitimate binding scenario (default: 42)'
+    )
+    zoom_chart_parser.add_argument(
+        '--attacker-id',
+        type=int,
+        default=99,
+        help='User ID for attack scenario (default: 99)'
+    )
+    zoom_chart_parser.add_argument(
+        '--zoom-factor',
+        type=float,
+        default=10.0,
+        help='Magnification factor for zoom (default: 10.0)'
+    )
+    zoom_chart_parser.add_argument(
+        '--zoom-region',
+        type=int,
+        nargs=4,
+        metavar=('X', 'Y', 'WIDTH', 'HEIGHT'),
+        help='Specific region to zoom into (x, y, width, height). If not provided, auto-selects optimal region'
+    )
+    zoom_chart_parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default='.',
+        help='Output directory for chart (default: current directory)'
+    )
+    zoom_chart_parser.add_argument(
+        '--output-name',
+        default='zoomed_demonstration_chart.png',
+        help='Chart filename (default: zoomed_demonstration_chart.png)'
+    )
+    
     return parser
 
 
@@ -334,6 +390,76 @@ def cmd_benchmark(args) -> None:
     print(f"   Throughput: {pixels_per_sec/1e6:.1f} Mpixels/sec")
 
 
+def cmd_zoom_chart(args) -> None:
+    """Execute zoomed chart generation command."""
+    print(f"🔍 Generating zoomed demonstration chart")
+    print(f"   Albedo: {args.albedo}")
+    print(f"   Normal: {args.normal}")
+    print(f"   Victim ID: {args.victim_id}")
+    print(f"   Attacker ID: {args.attacker_id}")
+    print(f"   Zoom factor: {args.zoom_factor}x")
+    
+    # Validate input files
+    if not args.albedo.exists():
+        raise FileNotFoundError(f"Albedo texture not found: {args.albedo}")
+    if not args.normal.exists():
+        raise FileNotFoundError(f"Normal map not found: {args.normal}")
+    
+    # Validate user IDs
+    if args.victim_id <= 0:
+        raise ValueError(f"Victim ID must be positive integer, got: {args.victim_id}")
+    if args.attacker_id <= 0:
+        raise ValueError(f"Attacker ID must be positive integer, got: {args.attacker_id}")
+    
+    # Validate zoom factor
+    if args.zoom_factor <= 1.0:
+        raise ValueError(f"Zoom factor must be greater than 1.0, got: {args.zoom_factor}")
+    
+    # Prepare zoom region if provided
+    zoom_region = None
+    if args.zoom_region:
+        zoom_region = tuple(args.zoom_region)
+        print(f"   Zoom region: {zoom_region[0]},{zoom_region[1]} ({zoom_region[2]}×{zoom_region[3]})")
+    else:
+        print(f"   Zoom region: Auto-selected")
+    
+    # Prepare output path
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / args.output_name
+    
+    try:
+        # Import ChartGenerator
+        from ..utils.chart_generator import ChartGenerator
+        
+        # Create chart generator and generate zoomed chart
+        print("🎨 Initializing chart generator...")
+        chart_generator = ChartGenerator()
+        
+        print("🔄 Processing assets and generating zoomed chart...")
+        saved_path = chart_generator.generate_zoomed_demonstration_chart(
+            albedo_path=str(args.albedo),
+            normal_path=str(args.normal),
+            victim_id=args.victim_id,
+            attacker_id=args.attacker_id,
+            output_path=str(output_path),
+            zoom_factor=args.zoom_factor,
+            zoom_region=zoom_region
+        )
+        
+        print(f"✅ Zoomed chart generated successfully!")
+        print(f"   Output: {saved_path}")
+        print(f"   Zoom: {args.zoom_factor}x magnification")
+        print(f"   User IDs: Victim={args.victim_id}, Attacker={args.attacker_id}")
+        
+    except ImportError as e:
+        print(f"❌ Chart generation dependencies not available: {e}")
+        print("   Please ensure matplotlib, PIL, and scipy are installed")
+    except Exception as e:
+        print(f"❌ Zoomed chart generation failed: {e}")
+        raise
+
+
 def cmd_chart(args) -> None:
     """Execute chart generation command."""
     print(f"📊 Generating demonstration chart")
@@ -411,6 +537,8 @@ def main() -> None:
             cmd_benchmark(args)
         elif args.command == 'chart':
             cmd_chart(args)
+        elif args.command == 'zoom-chart':
+            cmd_zoom_chart(args)
         else:
             parser.print_help()
             

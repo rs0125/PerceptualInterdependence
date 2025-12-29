@@ -113,12 +113,23 @@ if NUMBA_AVAILABLE:
                 # Reconstruct X/Y components
                 if lat_len_old < 1e-4:
                     # Handle flat surface (original normal was [0,0,1])
-                    # Generate pseudo-random direction based on coordinates
+                    # Enhanced roughening for stronger SSIM impact
+                    # Generate pseudo-random direction with increased amplitude
                     angle = (i * 12.9898 + j * 78.233) * 43758.5453
                     angle = angle - np.floor(angle)  # Get fractional part
                     angle = angle * 6.28318530718  # Convert to radians [0, 2π]
-                    nx_new = lat_len_new * np.cos(angle)
-                    ny_new = lat_len_new * np.sin(angle)
+                    
+                    # Amplify the lateral component for stronger effect
+                    amplification = 1.5 + 0.5 * p_effective  # Scale with poison strength
+                    nx_new = lat_len_new * amplification * np.cos(angle)
+                    ny_new = lat_len_new * amplification * np.sin(angle)
+                    
+                    # Renormalize to maintain unit vector
+                    norm = np.sqrt(nx_new*nx_new + ny_new*ny_new + nz_new*nz_new)
+                    if norm > 0.001:
+                        nx_new /= norm
+                        ny_new /= norm
+                        nz_new /= norm
                 else:
                     # Scale existing direction
                     ratio = lat_len_new / lat_len_old
@@ -300,17 +311,28 @@ class CPUOptimizedMath:
         nx_new = nx * ratio
         ny_new = ny * ratio
         
-        # For flat surfaces: generate pseudo-random direction
+        # For flat surfaces: generate pseudo-random direction with enhanced roughening
         if np.any(flat_mask):
             y_coords, x_coords = np.ogrid[:normal.shape[0], :normal.shape[1]]
             angles = (x_coords * 12.9898 + y_coords * 78.233) * 43758.5453
             angles = (angles - np.floor(angles)) * 2 * np.pi  # Convert to [0, 2π]
             
-            flat_nx = lat_len_new * np.cos(angles)
-            flat_ny = lat_len_new * np.sin(angles)
+            # Enhanced roughening with poison-dependent amplification
+            amplification = 1.5 + 0.5 * effective_poison
+            flat_nx = lat_len_new * amplification * np.cos(angles)
+            flat_ny = lat_len_new * amplification * np.sin(angles)
             
+            # Apply to flat areas
             nx_new = np.where(flat_mask, flat_nx, nx_new)
             ny_new = np.where(flat_mask, flat_ny, ny_new)
+            
+            # Renormalize flat surface vectors
+            flat_norm = np.sqrt(flat_nx**2 + flat_ny**2 + nz_new**2)
+            flat_norm = np.maximum(flat_norm, 0.001)
+            
+            nx_new = np.where(flat_mask, flat_nx / flat_norm, nx_new)
+            ny_new = np.where(flat_mask, flat_ny / flat_norm, ny_new)
+            nz_new = np.where(flat_mask, nz_new / flat_norm, nz_new)
         
         # Reconstruct normal vectors (vectorized)
         new_normal_vectors = np.stack([nx_new, ny_new, nz_new], axis=2)
