@@ -416,3 +416,105 @@ class RGBForensics:
         
         print(f"Forensic visualization saved as 'forensic_report.png'")
         print(f"Detected traitor: User ID {detected_uid} with correlation score {scores[detected_uid]:.6f}")
+    
+    def generate_continuous_spike_chart(self, signature: np.ndarray, max_users: int = 100, 
+                                      output_path: str = 'forensic_spike_chart.png') -> int:
+        """
+        Generate continuous spike chart for forensic detection demonstration.
+        
+        Creates a professional spike chart showing correlation scores across all users,
+        with clear visualization of the detection spike for the traitor user.
+        
+        Args:
+            signature (np.ndarray): Extracted signature array to analyze
+            max_users (int): Maximum number of users to test (default: 100)
+            output_path (str): Output path for the spike chart
+            
+        Returns:
+            int: Detected traitor user ID
+        """
+        # Run traitor detection to get correlation scores
+        detected_user = self.find_traitor(signature, max_users)
+        scores = self._last_correlation_scores
+        
+        # Create professional spike chart
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Generate user IDs for x-axis
+        user_ids = np.arange(len(scores))
+        
+        # Create continuous line plot with markers
+        ax.plot(user_ids, scores, 'b-', linewidth=1.5, alpha=0.7, label='Correlation Scores')
+        ax.scatter(user_ids, scores, c='lightblue', s=20, alpha=0.6, edgecolors='navy', linewidth=0.5)
+        
+        # Highlight the detection spike
+        if 0 <= detected_user < len(scores):
+            ax.scatter(detected_user, scores[detected_user], c='red', s=200, 
+                      marker='^', edgecolors='darkred', linewidth=2, 
+                      label=f'Detected Traitor (ID: {detected_user})', zorder=5)
+            
+            # Add vertical line at detection point
+            ax.axvline(x=detected_user, color='red', linestyle='--', alpha=0.7, linewidth=2)
+            
+            # Add horizontal line at detection score
+            ax.axhline(y=scores[detected_user], color='red', linestyle=':', alpha=0.5, linewidth=1)
+        
+        # Styling for professional appearance
+        ax.set_title('Forensic Detection: Continuous Correlation Analysis', 
+                    fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('User ID', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Correlation Score', fontsize=14, fontweight='bold')
+        
+        # Add grid for better readability
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+        ax.set_axisbelow(True)
+        
+        # Set axis limits with padding
+        ax.set_xlim(-2, max_users + 2)
+        score_range = max(scores) - min(scores)
+        ax.set_ylim(min(scores) - score_range * 0.1, max(scores) + score_range * 0.2)
+        
+        # Add legend
+        ax.legend(loc='upper right', fontsize=12, framealpha=0.9)
+        
+        # Add statistical annotations
+        mean_score = np.mean(scores)
+        std_score = np.std(scores)
+        detection_score = scores[detected_user]
+        
+        # Add text box with statistics
+        stats_text = f'Detection Statistics:\n'
+        stats_text += f'Mean Score: {mean_score:.4f}\n'
+        stats_text += f'Std Dev: {std_score:.4f}\n'
+        stats_text += f'Detection Score: {detection_score:.4f}\n'
+        stats_text += f'Z-Score: {(detection_score - mean_score) / std_score:.2f}'
+        
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+               verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', 
+               facecolor='lightgray', alpha=0.8))
+        
+        # Add detection threshold line (mean + 3*std)
+        threshold = mean_score + 3 * std_score
+        ax.axhline(y=threshold, color='orange', linestyle='-.', alpha=0.7, 
+                  linewidth=2, label=f'Detection Threshold (μ+3σ)')
+        
+        # Update legend to include threshold
+        ax.legend(loc='upper right', fontsize=12, framealpha=0.9)
+        
+        # Professional styling
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.5)
+        ax.spines['bottom'].set_linewidth(1.5)
+        
+        # Tight layout and save
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none')
+        plt.close()
+        
+        print(f"Continuous spike chart saved as '{output_path}'")
+        print(f"Detected traitor: User ID {detected_user}")
+        print(f"Detection score: {detection_score:.6f} (Z-score: {(detection_score - mean_score) / std_score:.2f})")
+        
+        return detected_user

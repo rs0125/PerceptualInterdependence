@@ -13,7 +13,7 @@ Comprehensive validation demonstrates the system's effectiveness across diverse 
 
 ## Demonstration Results
 
-The following charts demonstrate the system's capability to reveal subtle noise patterns through high-magnification analysis:
+The following charts demonstrate the system's capability to reveal subtle noise patterns through high-magnification analysis and forensic detection:
 
 ### Velvet Texture Analysis (10x Magnification)
 ![Velvet Texture 10x Zoom Analysis](docs/images/velvet_10x_analysis.png)
@@ -22,6 +22,10 @@ The following charts demonstrate the system's capability to reveal subtle noise 
 ### Church Bricks Texture Analysis (25x Magnification)
 ![Church Bricks 25x High-Magnification Analysis](docs/images/church_bricks_25x_analysis.png)
 *Ultra-high magnification (25x) analysis of church bricks texture demonstrating the system's effectiveness across diverse material types. The enhanced difference visualization shows the precise mathematical relationship between albedo and normal map modifications.*
+
+### Forensic Detection Demonstration
+![Forensic Detection Spike Chart](docs/images/forensic_detection_spike.png)
+*Continuous spike chart demonstrating forensic traitor detection across 150 users. The system successfully identifies User ID 123 (the actual traitor) with a correlation score Z-value of 12.20, providing clear statistical evidence of unauthorized texture usage. The detection threshold (μ+3σ) is shown in orange, with the massive detection spike clearly visible above background noise levels.*
 
 ## Key Features
 
@@ -142,6 +146,10 @@ perceptual-interdependence chart --albedo texture.png --normal normal.png
 
 # Generate high-magnification analysis charts
 perceptual-interdependence zoom-chart --albedo texture.png --normal normal.png --zoom-factor 15.0
+
+# Perform forensic traitor detection with spike chart
+perceptual-interdependence forensic --suspicious bound_texture.png --original clean_texture.png \
+  --max-users 150 --generate-spike-chart
 
 # Run performance benchmark
 perceptual-interdependence benchmark --size 2048 2048 --iterations 5
@@ -307,11 +315,22 @@ results = run_full_experiment(
 from perceptual_interdependence.core.forensics import RGBForensics
 
 forensics = RGBForensics()
-analysis = forensics.analyze_texture_pair(
-    "original_albedo.png",
-    "suspicious_albedo.png"
+
+# Extract signature from suspicious texture
+signature = forensics.extract_signature(
+    "suspicious_albedo.png",
+    "original_clean.png"
 )
-print(f"Tampering detected: {analysis['tampering_detected']}")
+
+# Detect traitor with continuous spike chart
+detected_user = forensics.generate_continuous_spike_chart(
+    signature,
+    max_users=150,
+    output_path="forensic_analysis.png"
+)
+
+print(f"Detected traitor: User ID {detected_user}")
+```
 ```
 
 ### Visualization and Analysis

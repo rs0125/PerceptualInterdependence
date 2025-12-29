@@ -27,6 +27,7 @@ Examples:
   %(prog)s demo --output-dir ./demo_results
   %(prog)s chart --albedo texture.png --normal normal.png --victim-id 42 --attacker-id 99
   %(prog)s zoom-chart --albedo texture.png --normal normal.png --zoom-factor 15.0
+  %(prog)s forensic --suspicious bound_texture.png --original clean_texture.png --generate-spike-chart
         """
     )
     
@@ -259,6 +260,41 @@ Examples:
         help='Chart filename (default: zoomed_demonstration_chart.png)'
     )
     
+    # Forensic Analysis command
+    forensic_parser = subparsers.add_parser(
+        'forensic',
+        help='Perform forensic traitor detection',
+        description='Analyze suspicious textures to detect unauthorized usage and identify traitors'
+    )
+    forensic_parser.add_argument(
+        '--suspicious',
+        type=Path,
+        required=True,
+        help='Path to suspicious albedo texture file'
+    )
+    forensic_parser.add_argument(
+        '--original',
+        type=Path,
+        required=True,
+        help='Path to original clean texture file'
+    )
+    forensic_parser.add_argument(
+        '--max-users',
+        type=int,
+        default=100,
+        help='Maximum number of users to test (default: 100)'
+    )
+    forensic_parser.add_argument(
+        '--output-chart',
+        default='forensic_spike_chart.png',
+        help='Output filename for spike chart (default: forensic_spike_chart.png)'
+    )
+    forensic_parser.add_argument(
+        '--generate-spike-chart',
+        action='store_true',
+        help='Generate continuous spike chart visualization'
+    )
+    
     return parser
 
 
@@ -388,6 +424,68 @@ def cmd_benchmark(args) -> None:
     # Calculate throughput
     pixels_per_sec = (args.size[0] * args.size[1]) / mean_time
     print(f"   Throughput: {pixels_per_sec/1e6:.1f} Mpixels/sec")
+
+
+def cmd_forensic(args) -> None:
+    """Execute forensic analysis command."""
+    print(f"Performing forensic traitor detection")
+    print(f"   Suspicious texture: {args.suspicious}")
+    print(f"   Original texture: {args.original}")
+    print(f"   Max users to test: {args.max_users}")
+    
+    # Validate input files
+    if not args.suspicious.exists():
+        raise FileNotFoundError(f"Suspicious texture not found: {args.suspicious}")
+    if not args.original.exists():
+        raise FileNotFoundError(f"Original texture not found: {args.original}")
+    
+    try:
+        # Import RGBForensics
+        from ..core.forensics import RGBForensics
+        
+        # Initialize forensics system
+        print("Initializing forensic analysis system...")
+        forensics = RGBForensics()
+        
+        # Extract signature from suspicious texture
+        print("Extracting noise signature from suspicious texture...")
+        signature = forensics.extract_signature(
+            str(args.suspicious),
+            str(args.original)
+        )
+        
+        print(f"Signature extracted: shape {signature.shape}")
+        print(f"Running correlation analysis across {args.max_users} users...")
+        
+        # Perform traitor detection
+        if args.generate_spike_chart:
+            detected_user = forensics.generate_continuous_spike_chart(
+                signature,
+                max_users=args.max_users,
+                output_path=args.output_chart
+            )
+        else:
+            detected_user = forensics.find_traitor(signature, max_users=args.max_users)
+            scores = forensics._last_correlation_scores
+            
+            # Calculate statistics
+            mean_score = scores.mean()
+            std_score = scores.std()
+            detection_score = scores[detected_user]
+            z_score = (detection_score - mean_score) / std_score
+            
+            print(f"Forensic analysis complete!")
+            print(f"Detected traitor: User ID {detected_user}")
+            print(f"Detection score: {detection_score:.6f}")
+            print(f"Z-score: {z_score:.2f}")
+            print(f"Statistical significance: {'HIGH' if z_score > 3.0 else 'MODERATE' if z_score > 2.0 else 'LOW'}")
+        
+    except ImportError as e:
+        print(f"Forensic analysis dependencies not available: {e}")
+        print("   Please ensure matplotlib and numpy are installed")
+    except Exception as e:
+        print(f"Forensic analysis failed: {e}")
+        raise
 
 
 def cmd_zoom_chart(args) -> None:
@@ -539,6 +637,8 @@ def main() -> None:
             cmd_chart(args)
         elif args.command == 'zoom-chart':
             cmd_zoom_chart(args)
+        elif args.command == 'forensic':
+            cmd_forensic(args)
         else:
             parser.print_help()
             
