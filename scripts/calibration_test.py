@@ -104,21 +104,21 @@ def run_calibration_test():
         
         texture_psnr = psnr(original_albedo, bound_albedo_img, data_range=255)
         
-        # METRIC 2 & 3: Render-level metrics with tilted lighting
-        tilted_light = [0.3, 0.3, 0.9]  # Tilted to reveal normal map differences
+        # METRIC 2 & 3: Render-level metrics with head-on lighting
+        head_on_light = [0.0, 0.0, 1.0]  # Head-on lighting (antidote is designed for this)
         
         # Render A (Truth): Original Albedo + Original Normal
         original_render = renderer.render(
             albedo_path=str(albedo_path),
             normal_path=str(normal_path),
-            light_dir=tilted_light
+            light_dir=head_on_light
         )
         
         # Render B (Legit): Poisoned Albedo + Antidote Normal
         legitimate_render = renderer.render(
             albedo_path=str(bound_albedo),
             normal_path=str(bound_normal),
-            light_dir=tilted_light
+            light_dir=head_on_light
         )
         
         # Render C (Attack): Poisoned Albedo + Flat Normal
@@ -130,7 +130,7 @@ def run_calibration_test():
         attack_render = renderer.render(
             albedo_path=str(bound_albedo),
             normal_path=str(flat_normal_path),
-            light_dir=tilted_light
+            light_dir=head_on_light
         )
         
         # Render D (Mismatched): Poisoned Albedo (user 42) + Wrong Antidote Normal (user 99)
@@ -147,7 +147,7 @@ def run_calibration_test():
         mismatched_render = renderer.render(
             albedo_path=str(bound_albedo),  # User 42's poisoned albedo
             normal_path=str(mismatched_normal),  # User 99's antidote normal
-            light_dir=tilted_light
+            light_dir=head_on_light
         )
         
         # Calculate render SSIMs

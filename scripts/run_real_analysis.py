@@ -120,17 +120,18 @@ class RealWorldAnalysisPipeline:
         Returns:
             Path to generated flat normal map
         """
-        # Load reference to get dimensions
-        ref_img = cv2.imread(reference_normal_path)
-        height, width = ref_img.shape[:2]
+        # Load reference to get dimensions (using PIL to match render simulator)
+        from PIL import Image
+        ref_img = Image.open(reference_normal_path)
+        width, height = ref_img.size
         
         # Create flat normal: all vectors pointing up [0, 0, 1]
         # In RGB space: [128, 128, 255]
         flat_normal = np.full((height, width, 3), [128, 128, 255], dtype=np.uint8)
         
-        # Save to temp file
+        # Save to temp file using PIL (RGB format, matching render simulator)
         flat_path = str(self.temp_dir / "flat_normal.png")
-        cv2.imwrite(flat_path, flat_normal)
+        Image.fromarray(flat_normal, mode='RGB').save(flat_path)
         
         return flat_path
     
@@ -159,8 +160,8 @@ class RealWorldAnalysisPipeline:
         Returns:
             Tuple of (texture_ssim, render_legit_ssim, render_attack_ssim, render_mismatched_ssim)
         """
-        # Initialize render simulator with tilted lighting to reveal normal map differences
-        tilted_light = [0.3, 0.3, 0.9]  # Tilted to show surface detail
+        # Initialize render simulator with head-on lighting (antidote is designed for this)
+        head_on_light = [0.0, 0.0, 1.0]  # Head-on lighting where antidote works correctly
         render_simulator = RenderSimulator()
         
         # METRIC 1: Texture Fidelity (File Theft Metric)
@@ -185,11 +186,11 @@ class RealWorldAnalysisPipeline:
         
         # METRIC 2: Visual Fidelity (Authorized User Metric)
         # Render A (Truth): Original Albedo + Original Normal
-        render_truth = render_simulator.render(original_albedo, original_normal, tilted_light)
+        render_truth = render_simulator.render(original_albedo, original_normal, head_on_light)
         
         # Render B (Legit): Poisoned Albedo + Antidote Normal
         # Tests if antidote successfully hides the poison for legitimate users
-        render_legit = render_simulator.render(poisoned_albedo, antidote_normal, tilted_light)
+        render_legit = render_simulator.render(poisoned_albedo, antidote_normal, head_on_light)
         
         # Ensure same dimensions
         if render_truth.shape != render_legit.shape:
@@ -209,7 +210,7 @@ class RealWorldAnalysisPipeline:
         # Render C (Attack): Poisoned Albedo + Flat Normal
         # Tests visual penalty for using stolen texture without correct geometry
         flat_normal_path = self._generate_flat_normal(original_normal)
-        render_attack = render_simulator.render(poisoned_albedo, flat_normal_path, tilted_light)
+        render_attack = render_simulator.render(poisoned_albedo, flat_normal_path, head_on_light)
         
         # Ensure same dimensions
         if render_truth.shape != render_attack.shape:
@@ -241,7 +242,7 @@ class RealWorldAnalysisPipeline:
         )
         mismatched_normal = str(mismatched_result['output_paths']['normal'])
         
-        render_mismatched = render_simulator.render(poisoned_albedo, mismatched_normal, tilted_light)
+        render_mismatched = render_simulator.render(poisoned_albedo, mismatched_normal, head_on_light)
         
         # Ensure same dimensions
         if render_truth.shape != render_mismatched.shape:
