@@ -27,7 +27,7 @@ OUTPUT_BASE_DIR = Path("data/real_validation_set")
 USER_AGENT = "ResearchDataAcquisition/1.0"
 MAX_WORKERS = 4
 ASSETS_PER_CATEGORY = 30
-CATEGORIES = ["wood", "metal", "ground", "fabric", "other"]
+CATEGORIES = ["wood", "metal", "terrain", "fabric", "rock"]
 TARGET_RESOLUTION = "1k"
 TARGET_FORMAT = "jpg"
 
@@ -41,19 +41,23 @@ def fetch_assets_by_category(category: str, limit: int = 100) -> List[Dict]:
     try:
         params = {
             "t": "textures",
-            "category": category,
-            "limit": limit,
         }
         response = session.get(API_BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         
         # API returns a dict with asset IDs as keys
+        # Filter client-side by checking if category is in the asset's categories array
         if isinstance(data, dict):
             assets = []
             for asset_id, asset_data in data.items():
-                asset_data["id"] = asset_id
-                assets.append(asset_data)
+                asset_categories = asset_data.get("categories", [])
+                # Check if our target category is in the asset's categories
+                if category in asset_categories:
+                    asset_data["id"] = asset_id
+                    assets.append(asset_data)
+                    if len(assets) >= limit:
+                        break
             return assets
         return []
     except requests.RequestException as e:
@@ -171,6 +175,7 @@ def main():
 
     download_tasks = []
     results = {"success": 0, "failed": 0, "skipped": 0}
+    used_asset_ids = set()  # Track used asset IDs to prevent duplicates
 
     # Collect all download tasks
     for category in CATEGORIES:
@@ -181,9 +186,17 @@ def main():
             print(f"  Warning: No assets found for category '{category}'")
             continue
 
-        # Take first ASSETS_PER_CATEGORY assets
-        selected_assets = assets[:ASSETS_PER_CATEGORY]
-        print(f"  Found {len(selected_assets)} assets, queuing for download")
+        # Select ASSETS_PER_CATEGORY unique assets (not already used)
+        selected_assets = []
+        for asset in assets:
+            asset_id = asset.get("id")
+            if asset_id and asset_id not in used_asset_ids:
+                selected_assets.append(asset)
+                used_asset_ids.add(asset_id)
+                if len(selected_assets) >= ASSETS_PER_CATEGORY:
+                    break
+        
+        print(f"  Found {len(selected_assets)} unique assets, queuing for download")
 
         for asset in selected_assets:
             asset_id = asset.get("id")

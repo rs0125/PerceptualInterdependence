@@ -326,23 +326,50 @@ class RGBForensics:
     
     def _compute_correlation_score(self, signature: np.ndarray, expected: np.ndarray) -> float:
         """
-        Compute correlation score using vectorized sum(Signature * Expected) formula.
+        Computes the Theoretical Z-Score using Pearson Correlation scaled by sqrt(N).
+        This is the standard 'Watermark Detection Statistic'.
         
         Args:
             signature (np.ndarray): Normalized signature array
             expected (np.ndarray): Normalized expected noise array
             
         Returns:
-            float: Correlation score
+            float: Theoretical Z-Score (rho * sqrt(N))
         """
         # Ensure arrays have matching shapes
         if signature.shape != expected.shape:
             raise ValueError(f"Shape mismatch: signature {signature.shape} vs expected {expected.shape}")
         
-        # Compute correlation using sum(Signature * Expected) formula
-        correlation_score = np.sum(signature * expected)
+        # 1. Flatten arrays to 1D
+        sig_flat = signature.flatten()
+        exp_flat = expected.flatten()
         
-        return float(correlation_score)
+        # 2. Centering (Subtract Mean)
+        # We do this explicitly to ensure robustness against lighting shifts
+        sig_mean = np.mean(sig_flat)
+        exp_mean = np.mean(exp_flat)
+        
+        sig_centered = sig_flat - sig_mean
+        exp_centered = exp_flat - exp_mean
+        
+        # 3. Pearson Correlation Coefficient (rho)
+        # Formula: sum(a*b) / sqrt(sum(a^2) * sum(b^2))
+        numerator = np.sum(sig_centered * exp_centered)
+        denominator = np.sqrt(np.sum(sig_centered**2) * np.sum(exp_centered**2))
+        
+        if denominator == 0:
+            return 0.0
+        
+        rho = numerator / denominator
+        
+        # 4. Theoretical Z-Score Calculation
+        # Z = rho * sqrt(N)
+        # For 1k texture, N = 1,048,576. sqrt(N) = 1024.
+        # A tiny correlation of 0.01 becomes Z = 10.24.
+        n_pixels = len(sig_flat)
+        z_score = rho * np.sqrt(n_pixels)
+        
+        return float(z_score)
     
     def visualize_results(self, scores: Optional[np.ndarray] = None, 
                          detected_uid: Optional[int] = None) -> None:
@@ -463,7 +490,7 @@ class RGBForensics:
         ax.set_title('Forensic Detection: Continuous Correlation Analysis', 
                     fontsize=16, fontweight='bold', pad=20)
         ax.set_xlabel('User ID', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Correlation Score', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Theoretical Z-Score (ρ × √N)', fontsize=14, fontweight='bold')
         
         # Add grid for better readability
         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
@@ -484,10 +511,10 @@ class RGBForensics:
         
         # Add text box with statistics
         stats_text = f'Detection Statistics:\n'
-        stats_text += f'Mean Score: {mean_score:.4f}\n'
+        stats_text += f'Mean Z-Score: {mean_score:.4f}\n'
         stats_text += f'Std Dev: {std_score:.4f}\n'
-        stats_text += f'Detection Score: {detection_score:.4f}\n'
-        stats_text += f'Z-Score: {(detection_score - mean_score) / std_score:.2f}'
+        stats_text += f'Detection Z-Score: {detection_score:.4f}\n'
+        stats_text += f'Relative Strength: {(detection_score - mean_score) / std_score:.2f}σ'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
                verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', 
