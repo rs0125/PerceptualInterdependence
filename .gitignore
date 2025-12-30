@@ -162,6 +162,10 @@ data/results/
 !data/samples/*.png
 !data/samples/*.jpg
 
+# Keep validation dataset
+!data/real_validation_set/
+!data/real_validation_set/**/*.jpg
+
 # Keep documentation images
 !docs/images/
 !docs/images/*.png
